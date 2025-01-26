@@ -421,9 +421,11 @@ if team == "Boston Celtics":
         # Add data to row 5 starting at B5
         ws.cell(row=5, column=2).value = "Enterprise Value"  # B5
         ws.cell(row=5, column=3).value = f"=C10*C3"          # C5
+        ws.cell(row=5, column=3).number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
         for col in range(4, 10):                             # D5 to I5
             ws.cell(row=5, column=col).value = ""
         ws.cell(row=5, column=10).value = f"=C11*J3"         # J5
+        ws.cell(row=5, column=10).number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
 
         # Ensure K2 is white
         ws.cell(row=2, column=11).fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")  # White background
