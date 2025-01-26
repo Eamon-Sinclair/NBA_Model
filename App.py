@@ -96,7 +96,7 @@ if team == "Boston Celtics":
             new_tev_revenue = reset_to_comps()
 
         
-    st.header("TEV/Revenue Adjustment")
+    st.header("TEV/Revenue Multiple Scale")
     new_tev_revenue = st.slider("Adjust Exit TEV/Revenue Multiple", min_value=5.0, max_value=20.0, value=new_tev_revenue, step=0.1)
 
     # Graph 1
@@ -141,8 +141,8 @@ if team == "Boston Celtics":
         textposition="outside"
     ))
     fig_growth.update_layout(
-        title="Required Revenue Growth vs Comparables",
-        yaxis_title="Revenue Growth (%)",
+        title="Implied Revenue Growth Rate vs Comparables",
+        yaxis_title="Revenue Growth Rate (%)",
         template="plotly_white",
         barmode="group",
         height=500,
@@ -176,19 +176,23 @@ if team == "Boston Celtics":
             table_html += f'<th style="padding: 10px; border: 1px solid #ddd;">{col}</th>'
         table_html += '</tr>'
         for _, row in df.iterrows():
-            # Set both rows to white background
             table_html += '<tr style="background-color: white; text-align: center;">'
             for cell in row:
-                table_html += f'<td style="padding: 10px; border: 1px solid #ddd;">{cell}</td>'
+                # Format numbers to 1 decimal place and handle negatives with parentheses
+                if isinstance(cell, (float, int)):
+                    formatted_cell = f"({abs(cell):,.1f})" if cell < 0 else f"{cell:,.1f}"
+                else:
+                    formatted_cell = cell  # Keep non-numeric cells as is
+                table_html += f'<td style="padding: 10px; border: 1px solid #ddd;">{formatted_cell}</td>'
             table_html += '</tr>'
         table_html += '</table>'
         return table_html
 
-
     projections_styled = pd.DataFrame({
-        "($M)": ["Revenue", "Cash Flow"],
-        **{f"{int(entry_year) + i}": [f"{projected_revenue[i]:,.2f}", f"{cash_flows[i]:,.2f}"] for i in range(len(projected_revenue))}
+        " ": ["Revenue", "Cash Flow"],
+        **{f"{int(entry_year) + i}": [projected_revenue[i], cash_flows[i]] for i in range(len(projected_revenue))}
     })
+
 
     # Generate the styled HTML table
     html_table = generate_styled_table(projections_styled)
@@ -200,14 +204,19 @@ if team == "Boston Celtics":
         html += '</tr></thead><tbody>'
         for _, row in df.iterrows():
             html += '<tr>'
-            html += ''.join(f'<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{cell}</td>' for cell in row)
+            for cell in row:
+                # Format numbers to 1 decimal place and handle negatives with parentheses
+                if isinstance(cell, (float, int)):
+                    formatted_cell = f"({abs(cell):,.1f})" if cell < 0 else f"{cell:,.1f}"
+                else:
+                    formatted_cell = cell  # Keep non-numeric cells as is
+                html += f'<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{formatted_cell}</td>'
             html += '</tr>'
         html += '</tbody></table>'
         return html
 
     # Toggle for displaying quarterly data
-    # Toggle for displaying quarterly data
-    st.subheader("Projected Financials")
+    st.subheader("Projected Financials (in $MM)")
     # Add a dropdown to toggle between "Years" and "Quarters"
     view_option = st.selectbox("View By", options=["Years", "Quarters"], index=0)
 
@@ -223,28 +232,49 @@ if team == "Boston Celtics":
                 quarter_label = f"{q}Q{str(year)[-2:]}"
                 quarter_labels.append(quarter_label)
 
-                # Divide annual revenue by 4 for each quarter
-                revenue_row.append(f"{annual_revenue / 4:.2f}")
+                # Divide annual revenue by 4 for each quarter (keep as numeric)
+                revenue_row.append(annual_revenue / 4)
 
-                # Cash flow logic
+                # Cash flow logic (keep as numeric)
                 if quarter_label == entry_quarter:
                     # Entry Quarter: Investment (negative cash flow)
-                    cash_flow_row.append(f"{cash_flows[0]:.2f}")
+                    cash_flow_row.append(cash_flows[0])
                 elif quarter_label == exit_quarter:
                     # Exit Quarter: Return (positive cash flow)
-                    cash_flow_row.append(f"{cash_flows[-1]:.2f}")
+                    cash_flow_row.append(cash_flows[-1])
                 else:
                     # Intermediate Quarters: No cash flow
-                    cash_flow_row.append("0.00")
+                    cash_flow_row.append(0.0)
 
         # Create a DataFrame for the quarters table
         quarters_table = pd.DataFrame(
             [revenue_row, cash_flow_row],
             columns=quarter_labels,
-            index=["Revenue ($M)", "Cash Flow ($M)"]
+            index=["Revenue", "Cash Flow"]
         ).reset_index()
 
+        quarters_table.rename(columns={"index": ""}, inplace=True)
+
         # Generate the styled HTML table
+        def generate_quarters_table_html_horizontal(df):
+            html = '<table style="width: 100%; border-collapse: collapse;">'
+            html += '<thead><tr style="background-color: #0056b3; color: white; text-align: center;">'
+            html += ''.join(f'<th style="padding: 8px; border: 1px solid #ddd;">{col}</th>' for col in df.columns)
+            html += '</tr></thead><tbody>'
+            for _, row in df.iterrows():
+                html += '<tr>'
+                for cell in row:
+                    # Format numbers to 1 decimal place and handle negatives with parentheses
+                    if isinstance(cell, (float, int)):
+                        formatted_cell = f"({abs(cell):,.1f})" if cell < 0 else f"{cell:,.1f}"
+                    else:
+                        formatted_cell = cell  # Keep non-numeric cells as is
+                    html += f'<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{formatted_cell}</td>'
+                html += '</tr>'
+            html += '</tbody></table>'
+            return html
+
+        # Generate and display the styled HTML table
         html_quarters_table = generate_quarters_table_html_horizontal(quarters_table)
         st.markdown(html_quarters_table, unsafe_allow_html=True)
 
@@ -253,21 +283,21 @@ if team == "Boston Celtics":
         st.markdown(html_table, unsafe_allow_html=True)
 
 
-    st.subheader("Investment Summary")
+    st.subheader("Investment Summary (in $MM)")
         
     investment_summary = pd.DataFrame({
         "Metric": [
-            "Investment Amount ($M)",
-            "Exit Amount ($M)",
+            "Entry Equity",
+            "Exit Equity",
             "IRR (%)",
-            "MOIC (x)",
+            "MOIC",
             "Entry Multiple",
             "Exit Multiple",
-            "Required Avg. Revenue Growth"
+            "Implied Revenue Growth Rate (%)"
         ],
         "Value": [
-            f"${entry_cash_flow:,.0f}M",
-            f"${exit_cash_flow:,.0f}M",
+            f"${entry_cash_flow:,.0f}",
+            f"${exit_cash_flow:,.0f}",
             f"{irr:.1f}%",
             f"{moic:.1f}x",
             f"{entry_tev_revenue:.1f}x",
@@ -283,7 +313,11 @@ if team == "Boston Celtics":
         html += '</tr></thead><tbody>'
         for _, row in df.iterrows():
             html += '<tr>'
-            html += ''.join(f'<td style="padding: 8px; border: 1px solid #ddd;">{cell}</td>' for cell in row)
+            for col_idx, cell in enumerate(row):
+                if col_idx == 1:  # Right-align the second column (Value column)
+                    html += f'<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">{cell}</td>'
+                else:  # Left-align the first column (Metric column)
+                    html += f'<td style="padding: 8px; border: 1px solid #ddd; text-align: left;">{cell}</td>'
             html += '</tr>'
         html += '</tbody></table>'
         return html
@@ -292,91 +326,112 @@ if team == "Boston Celtics":
     # Display the table
     st.markdown(generate_summary_table_html(investment_summary), unsafe_allow_html=True)
 
-        # Function to style Excel headers
-    def style_headers(ws):
+
+    # Function to style Excel headers
+    def style_headers(ws, start_row, start_col, end_col, underline=False, bold=True, empty_col=None):
         header_fill = PatternFill(start_color="0056b3", end_color="0056b3", fill_type="solid")
-        header_font = Font(color="FFFFFF", bold=True)
+        header_font = Font(color="FFFFFF", bold=bold, underline='single' if underline else None)
         header_alignment = Alignment(horizontal="center", vertical="center")
         
-        for cell in ws[1]:  # First row is the header
+        for col in range(start_col, end_col + 1):
+            cell = ws.cell(row=start_row, column=col)
             cell.fill = header_fill
             cell.font = header_font
             cell.alignment = header_alignment
 
-    # Function to adjust column widths
-    def adjust_column_widths(ws):
-        for col in ws.columns:
-            max_length = max(len(str(cell.value) if cell.value else "") for cell in col)
-            col_letter = col[0].column_letter
-            ws.column_dimensions[col_letter].width = max_length + 2
+        # Handle the optional empty column
+        if empty_col is not None:
+            empty_cell = ws.cell(row=start_row, column=empty_col)
+            empty_cell.fill = header_fill
+            empty_cell.font = Font(color="FFFFFF")  # Make it consistent but empty
+            empty_cell.value = None
 
-    # Export to Excel with Two Sheets
-    def export_to_excel(projections_df, summary_df):
+    def process_cell_as_numeric_with_format(ws, row, col):
+    # Get the cell value (this will come from your website dynamically in real usage)
+        cell_value = ws.cell(row=row, column=col).value  # Get the current value in the cell
+        if isinstance(cell_value, str) and "x" in cell_value:
+        # Remove 'x' and convert to float
+            numeric_value = float(cell_value.replace("x", ""))
+        else:
+            numeric_value = cell_value
+
+        # Set the numeric value in the cell
+        ws.cell(row=row, column=col).value = numeric_value
+        # Format the cell to display as "0.0x"
+        ws.cell(row=row, column=col).number_format = "0.0x"
+        return numeric_value
+
+    # Export to Excel with everything on one sheet
+    def export_to_excel_one_sheet(projections_df, summary_df):
         # Create a workbook
         wb = Workbook()
 
-        # First Sheet: Projections
-        ws1 = wb.active
-        ws1.title = "Projections"
-        
-        # Add data to Projections sheet as numbers
-        for row in dataframe_to_rows(projections_df, index=False, header=True):
-            ws1.append(row)
+        # Active sheet: Combined Data
+        ws = wb.active
+        ws.title = "Investment Summary"
 
-        # Convert all cells (except headers) to numeric format if possible
-        for row in ws1.iter_rows(min_row=2, min_col=2):
-            for cell in row:
-                try:
-                    cell.value = float(cell.value)  # Convert to numeric
-                except (ValueError, TypeError):
-                    pass  # Leave as is if not convertible
+        # Add Projections Table starting at B2
+        for row_idx, row in enumerate(dataframe_to_rows(projections_df, index=False, header=True), start=2):
+            for col_idx, value in enumerate(row, start=2):  # Start at column B
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                # Format numbers in currency with parentheses for negatives
+                if isinstance(value, (int, float)):
+                    cell.number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
 
-        # Style headers and adjust column widths
-        style_headers(ws1)
-        adjust_column_widths(ws1)
+        # Style Projections Table headers (C2:J2) and keep B2 empty but styled
+        style_headers(ws, start_row=2, start_col=2, end_col=len(projections_df.columns) + 2, underline=True, bold=True, empty_col=2)
 
-        # Add dynamic revenue formulas to Projections sheet
-        for col_idx in range(3, len(projections_df.columns) + 1):  # Start from the second year onward
-            col_letter = ws1.cell(1, col_idx).column_letter
-            prev_col_letter = ws1.cell(1, col_idx - 1).column_letter
-            # Revenue formula: Previous year's revenue * (1 + growth rate from Summary sheet)
-            ws1.cell(2, col_idx).value = f"={prev_col_letter}2*(1+(Summary!$B$6)/100)"
+        # Add Summary Table starting dynamically below Projections Table
+        summary_start_row = len(projections_df) + 5  # Adjust dynamically based on projections_df size
+        for row_idx, row in enumerate(dataframe_to_rows(summary_df, index=False, header=True), start=summary_start_row):
+            for col_idx, value in enumerate(row, start=2):  # Start at column B
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                # Format numbers in currency with parentheses for negatives
+                if isinstance(value, (int, float)):
+                    cell.number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
 
-        # Add the input revenue directly for the first column
-        ws1.cell(2, 2).value = float(projections_df.iloc[0, 1])  # Input revenue in B2
+        # Style Summary Table headers (limit to B7 and C7)
+        style_headers(ws, start_row=summary_start_row, start_col=2, end_col=3)
 
-        # Add TEV formulas
-        ws1.cell(4, 2).value = f"=B2*Summary!$B$4"  # Entry TEV = Revenue * Entry Multiple
-        ws1.cell(4, ws1.max_column).value = f"={ws1.cell(2, ws1.max_column).coordinate}*Summary!$B$5"  # Exit TEV
+        # Right align cells C8:C14
+        for row in range(summary_start_row + 1, summary_start_row + len(summary_df) + 1):
+            ws.cell(row=row, column=3).alignment = Alignment(horizontal="right", vertical="center")
 
-        # Update label for TEV row
-        ws1.cell(4, 1).value = "Implied Enterprise Value"
+        # Add dynamic IRR and MOIC formulas to the Summary Table
+        # IRR formula
+        cash_flow_range = f"'Investment Summary'!C4:J4"  # Fixed to span columns C to J in row 4
+        ws.cell(row=summary_start_row + len(summary_df), column=2).value = "IRR (%)"
+        irr_cell = ws.cell(row=summary_start_row + len(summary_df), column=3)
+        irr_cell.value = f"=IRR({cash_flow_range})"
+        irr_cell.number_format = "0.0%"  # Automatically formats as a percentage with 1 decimal place
 
-        # Second Sheet: Summary
-        ws2 = wb.create_sheet(title="Summary")
-        
-        # Clean summary data: Remove `%`, `M`, and `x` suffixes
-        summary_cleaned = summary_df.copy()
-        summary_cleaned["Value"] = summary_cleaned["Value"].replace(
-            {r"[^\d\.]": ""}, regex=True  # Remove non-numeric characters
-        ).astype(float)  # Convert to float
+        # MOIC formula
+        entry_cash_flow_cell = ws.cell(row=4, column=3).coordinate  # Entry cash flow in Projections
+        exit_cash_flow_cell = ws.cell(row=4, column=10).coordinate  # Exit cash flow in Projections
+        ws.cell(row=summary_start_row + len(summary_df) + 1, column=2).value = "MOIC (x)"
+        moic_cell = ws.cell(row=summary_start_row + len(summary_df) + 1, column=3)
+        moic_cell.value = f"={exit_cash_flow_cell}/ABS({entry_cash_flow_cell})"
+        moic_cell.number_format = "0.0x"
 
-        # Add data to Summary sheet
-        for row in dataframe_to_rows(summary_cleaned, index=False, header=True):
-            ws2.append(row)
+        ws.delete_rows(idx=10, amount=2)
 
-        # Style headers and adjust column widths
-        style_headers(ws2)
-        adjust_column_widths(ws2)
+        c10_value = process_cell_as_numeric_with_format(ws, row=10, col=3)
+        c11_value = process_cell_as_numeric_with_format(ws, row=11, col=3)
 
-        # Add IRR and MOIC formulas directly to the Summary sheet
-        cash_flow_range = f"'Projections'!B3:{ws1.cell(3, len(projections_df.columns)).column_letter}3"  # Cash flow row
-        ws2.cell(len(summary_cleaned) + 2, 1).value = "IRR (%)"
-        ws2.cell(len(summary_cleaned) + 2, 2).value = f"=IRR({cash_flow_range})"
-        ws2.cell(len(summary_cleaned) + 3, 1).value = "MOIC (x)"
-        ws2.cell(len(summary_cleaned) + 3, 2).value = f"='Projections'!{ws1.cell(3, len(projections_df.columns)).coordinate}/ABS('Projections'!{ws1.cell(3, 2).coordinate})"
+        # Add data to row 5 starting at B5
+        ws.cell(row=5, column=2).value = "Enterprise Value"  # B5
+        ws.cell(row=5, column=3).value = f"=C10*C3"          # C5
+        for col in range(4, 10):                             # D5 to I5
+            ws.cell(row=5, column=col).value = ""
+        ws.cell(row=5, column=10).value = f"=C11*J3"         # J5
 
-        ws2.delete_rows(4, 2)
+        # Ensure K2 is white
+        ws.cell(row=2, column=11).fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")  # White background
+        ws.column_dimensions["A"].width = 1
+        ws.column_dimensions["B"].width = 15
+
+        # Remove gridlines
+        ws.sheet_view.showGridLines = False
 
         # Save to BytesIO for Streamlit download
         output = BytesIO()
@@ -400,7 +455,7 @@ if team == "Boston Celtics":
     # Export Button in Streamlit
     st.download_button(
         label="Download Excel File",
-        data=export_to_excel(projections_df, summary_df),
+        data=export_to_excel_one_sheet(projections_df, summary_df),
         file_name="CelticsModel_v1.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
