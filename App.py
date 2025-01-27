@@ -456,6 +456,7 @@ if team == "Boston Celtics":
             ["7/3/2024", "Golden State Warriors", 6250, 14.9, .14],
             ["2/24/2024", "New York Knicks", 5340, 12.8, .12],
             ["12/2/2023", "Los Angeles Lakers", 5870, 11.6, .09],
+            ["", "TargetCo", starting_enterprise_value, entry_tev_revenue, (required_revenue_growth/100)],
         ]
 
         # Add data to Comparable Transactions starting at B2
@@ -473,6 +474,11 @@ if team == "Boston Celtics":
                 # Center-align all information in cells
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
+                # Apply light green color to TargetCo row
+                if row_idx == 6:  # TargetCo row is at index 6 (row after Lakers)
+                    cell.fill = PatternFill(start_color="007A33", end_color="007A33", fill_type="solid")
+                    cell.font = Font(color="FFFFFF")
+              
         # Style headers (B2:F2)
         header_fill = PatternFill(start_color="0056b3", end_color="0056b3", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True, underline="single")
@@ -489,6 +495,12 @@ if team == "Boston Celtics":
             cell = ws_comparables.cell(row=5, column=col)
             cell.border = Border(bottom=Side(style="thin"))
 
+        # Add line under the Mean row (B8:F8)
+        for col in range(2, 7):
+            cell = ws_comparables.cell(row=6, column=col)
+            cell.border = Border(bottom=Side(style="thin"))
+  
+
         # Add Median row dynamically
         median_row = ["Median", ""]
         median_row_formulas = [
@@ -498,11 +510,11 @@ if team == "Boston Celtics":
         ]
 
         for col_idx, value in enumerate(median_row + median_row_formulas, start=2):
-            cell = ws_comparables.cell(row=6, column=col_idx, value=value if col_idx <= 3 else None)
+            cell = ws_comparables.cell(row=7, column=col_idx, value=value if col_idx <= 3 else None)
             if col_idx > 3:
                 cell.value = median_row_formulas[col_idx - 4]
             cell.alignment = Alignment(horizontal="center", vertical="center")
-            cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
             if col_idx == 4:
                 cell.number_format = "$#,##0.0"
             elif col_idx == 5:
@@ -519,11 +531,11 @@ if team == "Boston Celtics":
         ]
 
         for col_idx, value in enumerate(mean_row + mean_row_formulas, start=2):
-            cell = ws_comparables.cell(row=7, column=col_idx, value=value if col_idx <= 3 else None)
+            cell = ws_comparables.cell(row=8, column=col_idx, value=value if col_idx <= 3 else None)
             if col_idx > 3:
                 cell.value = mean_row_formulas[col_idx - 4]
             cell.alignment = Alignment(horizontal="center", vertical="center")
-            cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
             if col_idx == 4:
                 cell.number_format = "$#,##0.0"
             elif col_idx == 5:
@@ -542,11 +554,7 @@ if team == "Boston Celtics":
         ws_comparables.column_dimensions["F"].width = 20
 
         return wb
-
-
-
-
-
+    
     # Prepare DataFrames for Export
     if view_option == "Years":
         projections_df = projections_styled  # Use the annual projections
