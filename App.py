@@ -9,6 +9,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.styles import Border, Side, Alignment
+from statistics import median
+
 
 # Page Title
 st.title("NBA Team Underwriting Dashboard")
@@ -347,100 +350,202 @@ if team == "Boston Celtics":
             empty_cell.value = None
 
     def process_cell_as_numeric_with_format(ws, row, col):
-    # Get the cell value (this will come from your website dynamically in real usage)
-        cell_value = ws.cell(row=row, column=col).value  # Get the current value in the cell
+        # Get the current cell value
+        cell_value = ws.cell(row=row, column=col).value
+
+        # Convert cell value to numeric if it contains "x"
         if isinstance(cell_value, str) and "x" in cell_value:
-        # Remove 'x' and convert to float
             numeric_value = float(cell_value.replace("x", ""))
         else:
             numeric_value = cell_value
 
-        # Set the numeric value in the cell
+        # Update the cell with the numeric value
         ws.cell(row=row, column=col).value = numeric_value
-        # Format the cell to display as "0.0x"
+
+        # Apply the "0.0x" number format to the cell
         ws.cell(row=row, column=col).number_format = "0.0x"
+
         return numeric_value
 
-    # Export to Excel with everything on one sheet
+
     def export_to_excel_one_sheet(projections_df, summary_df):
         # Create a workbook
         wb = Workbook()
 
-        # Active sheet: Combined Data
-        ws = wb.active
-        ws.title = "Investment Summary"
+        # Active sheet: Investment Summary
+        ws_summary = wb.active
+        ws_summary.title = "Investment Summary"
 
         # Add Projections Table starting at B2
         for row_idx, row in enumerate(dataframe_to_rows(projections_df, index=False, header=True), start=2):
             for col_idx, value in enumerate(row, start=2):  # Start at column B
-                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell = ws_summary.cell(row=row_idx, column=col_idx, value=value)
                 # Format numbers in currency with parentheses for negatives
                 if isinstance(value, (int, float)):
                     cell.number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
 
-        # Style Projections Table headers (C2:J2) and keep B2 empty but styled
-        style_headers(ws, start_row=2, start_col=2, end_col=len(projections_df.columns) + 2, underline=True, bold=True, empty_col=2)
+        # Style Projections Table headers
+        style_headers(ws_summary, start_row=2, start_col=2, end_col=len(projections_df.columns) + 1, underline=True, bold=True)
 
         # Add Summary Table starting dynamically below Projections Table
-        summary_start_row = len(projections_df) + 5  # Adjust dynamically based on projections_df size
+        summary_start_row = len(projections_df) + 5
         for row_idx, row in enumerate(dataframe_to_rows(summary_df, index=False, header=True), start=summary_start_row):
             for col_idx, value in enumerate(row, start=2):  # Start at column B
-                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell = ws_summary.cell(row=row_idx, column=col_idx, value=value)
                 # Format numbers in currency with parentheses for negatives
                 if isinstance(value, (int, float)):
                     cell.number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
 
-        # Style Summary Table headers (limit to B7 and C7)
-        style_headers(ws, start_row=summary_start_row, start_col=2, end_col=3)
+        # Style Summary Table headers
+        style_headers(ws_summary, start_row=summary_start_row, start_col=2, end_col=3)
 
-        # Right align cells C8:C14
         for row in range(summary_start_row + 1, summary_start_row + len(summary_df) + 1):
-            ws.cell(row=row, column=3).alignment = Alignment(horizontal="right", vertical="center")
+            ws_summary.cell(row=row, column=3).alignment = Alignment(horizontal="right", vertical="center")
 
         # Add dynamic IRR and MOIC formulas to the Summary Table
-        # IRR formula
         cash_flow_range = f"'Investment Summary'!C4:J4"  # Fixed to span columns C to J in row 4
-        ws.cell(row=summary_start_row + len(summary_df), column=2).value = "IRR (%)"
-        irr_cell = ws.cell(row=summary_start_row + len(summary_df), column=3)
+        ws_summary.cell(row=summary_start_row + len(summary_df), column=2).value = "IRR (%)"
+        irr_cell = ws_summary.cell(row=summary_start_row + len(summary_df), column=3)
         irr_cell.value = f"=IRR({cash_flow_range})"
         irr_cell.number_format = "0.0%"  # Automatically formats as a percentage with 1 decimal place
 
         # MOIC formula
-        entry_cash_flow_cell = ws.cell(row=4, column=3).coordinate  # Entry cash flow in Projections
-        exit_cash_flow_cell = ws.cell(row=4, column=10).coordinate  # Exit cash flow in Projections
-        ws.cell(row=summary_start_row + len(summary_df) + 1, column=2).value = "MOIC (x)"
-        moic_cell = ws.cell(row=summary_start_row + len(summary_df) + 1, column=3)
+        entry_cash_flow_cell = ws_summary.cell(row=4, column=3).coordinate  # Entry cash flow in Projections
+        exit_cash_flow_cell = ws_summary.cell(row=4, column=10).coordinate  # Exit cash flow in Projections
+        ws_summary.cell(row=summary_start_row + len(summary_df) + 1, column=2).value = "MOIC (x)"
+        moic_cell = ws_summary.cell(row=summary_start_row + len(summary_df) + 1, column=3)
         moic_cell.value = f"={exit_cash_flow_cell}/ABS({entry_cash_flow_cell})"
         moic_cell.number_format = "0.0x"
 
-        ws.delete_rows(idx=10, amount=2)
+        ws_summary.delete_rows(idx=10, amount=2)
 
-        c10_value = process_cell_as_numeric_with_format(ws, row=10, col=3)
-        c11_value = process_cell_as_numeric_with_format(ws, row=11, col=3)
+        # Process cells and retrieve numeric values
+        c10_value = process_cell_as_numeric_with_format(ws_summary, 10, 3)
+        c11_value = process_cell_as_numeric_with_format(ws_summary, 11, 3)
 
         # Add data to row 5 starting at B5
-        ws.cell(row=5, column=2).value = "Enterprise Value"  # B5
-        ws.cell(row=5, column=3).value = f"=C10*C3"          # C5
-        ws.cell(row=5, column=3).number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
+        ws_summary.cell(row=5, column=2).value = "Enterprise Value"  # B5
+        ws_summary.cell(row=5, column=3).value = f"=C10*C3"          # C5
+        ws_summary.cell(row=5, column=3).number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
         for col in range(4, 10):                             # D5 to I5
-            ws.cell(row=5, column=col).value = ""
-        ws.cell(row=5, column=10).value = f"=C11*J3"         # J5
-        ws.cell(row=5, column=10).number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
+            ws_summary.cell(row=5, column=col).value = ""
+        ws_summary.cell(row=5, column=10).value = f"=C11*J3"         # J5
+        ws_summary.cell(row=5, column=10).number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"
 
-        # Ensure K2 is white
-        ws.cell(row=2, column=11).fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")  # White background
-        ws.column_dimensions["A"].width = 1
-        ws.column_dimensions["B"].width = 15
+        ws_summary.sheet_view.showGridLines = False
 
-        # Remove gridlines
-        ws.sheet_view.showGridLines = False
+        ws_summary.column_dimensions["A"].width = 1
+        ws_summary.column_dimensions["B"].width = 15
+        ws_summary.column_dimensions["C"].width = 12
+        ws_summary.column_dimensions["D"].width = 12
+        ws_summary.column_dimensions["E"].width = 12
+        ws_summary.column_dimensions["F"].width = 12
+        ws_summary.column_dimensions["G"].width = 12
+        ws_summary.column_dimensions["H"].width = 12
+        ws_summary.column_dimensions["I"].width = 12
+        ws_summary.column_dimensions["J"].width = 12
+        return wb
 
-        # Save to BytesIO for Streamlit download
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
+    def add_comparable_transactions_sheet(wb):
+        # Add Comparable Transactions Sheet
+        ws_comparables = wb.create_sheet(title="Comparable Transactions")
 
-        return output
+        # Hardcoded data
+        comparables_data = [
+            ["Date", "Team", "Transaction Value", "TEV/Revenue", "5-Year Revenue Growth"],
+            ["7/3/2024", "Golden State Warriors", 6250, 14.9, .14],
+            ["2/24/2024", "New York Knicks", 5340, 12.8, .12],
+            ["12/2/2023", "Los Angeles Lakers", 5870, 11.6, .09],
+        ]
+
+        # Add data to Comparable Transactions starting at B2
+        for row_idx, row in enumerate(comparables_data, start=2):
+            for col_idx, value in enumerate(row, start=2):  # Start at column B
+                cell = ws_comparables.cell(row=row_idx, column=col_idx, value=value)
+                # Format numbers based on column type
+                if isinstance(value, (int, float)):
+                    if col_idx == 4:  # Format Transaction Value as currency with 1 decimal
+                        cell.number_format = "$#,##0.0"
+                    elif col_idx == 5:  # Format EV/Sales as ##.#x
+                        cell.number_format = "0.0x"
+                    elif col_idx == 6:  # Format Revenue Growth as percentage
+                        cell.number_format = "0.0%"
+                # Center-align all information in cells
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Style headers (B2:F2)
+        header_fill = PatternFill(start_color="0056b3", end_color="0056b3", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True, underline="single")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+
+        for col in range(2, 7):
+            cell = ws_comparables.cell(row=2, column=col)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+
+        # Add line under the header row (B5:F5)
+        for col in range(2, 7):
+            cell = ws_comparables.cell(row=5, column=col)
+            cell.border = Border(bottom=Side(style="thin"))
+
+        # Add Median row dynamically
+        median_row = ["Median", ""]
+        median_row_formulas = [
+            f"=MEDIAN(D3:D5)",  # Transaction Value
+            f"=MEDIAN(E3:E5)",  # EV/Sales
+            f"=MEDIAN(F3:F5)"   # Revenue Growth
+        ]
+
+        for col_idx, value in enumerate(median_row + median_row_formulas, start=2):
+            cell = ws_comparables.cell(row=6, column=col_idx, value=value if col_idx <= 3 else None)
+            if col_idx > 3:
+                cell.value = median_row_formulas[col_idx - 4]
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+            if col_idx == 4:
+                cell.number_format = "$#,##0.0"
+            elif col_idx == 5:
+                cell.number_format = "0.0x"
+            elif col_idx == 6:
+                cell.number_format = "0.0%"
+
+        # Add Mean row dynamically
+        mean_row = ["Mean", ""]
+        mean_row_formulas = [
+            f"=AVERAGE(D3:D5)",  # Transaction Value
+            f"=AVERAGE(E3:E5)",  # EV/Sales
+            f"=AVERAGE(F3:F5)"   # Revenue Growth
+        ]
+
+        for col_idx, value in enumerate(mean_row + mean_row_formulas, start=2):
+            cell = ws_comparables.cell(row=7, column=col_idx, value=value if col_idx <= 3 else None)
+            if col_idx > 3:
+                cell.value = mean_row_formulas[col_idx - 4]
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+            if col_idx == 4:
+                cell.number_format = "$#,##0.0"
+            elif col_idx == 5:
+                cell.number_format = "0.0x"
+            elif col_idx == 6:
+                cell.number_format = "0.0%"
+
+        # Ensure gridlines are not shown
+        ws_comparables.sheet_view.showGridLines = False
+
+        ws_comparables.column_dimensions["A"].width = 1
+        ws_comparables.column_dimensions["B"].width = 20
+        ws_comparables.column_dimensions["C"].width = 20
+        ws_comparables.column_dimensions["D"].width = 20
+        ws_comparables.column_dimensions["E"].width = 20
+        ws_comparables.column_dimensions["F"].width = 20
+
+        return wb
+
+
+
+
 
     # Prepare DataFrames for Export
     if view_option == "Years":
@@ -454,10 +559,19 @@ if team == "Boston Celtics":
 
     summary_df = investment_summary  # Use the summary DataFrame
 
+    # Generate Workbook
+    wb = export_to_excel_one_sheet(projections_df, summary_df)
+    wb = add_comparable_transactions_sheet(wb)
+
+    # Save Workbook to BytesIO for Download
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
     # Export Button in Streamlit
     st.download_button(
         label="Download Excel File",
-        data=export_to_excel_one_sheet(projections_df, summary_df),
+        data=output,
         file_name="CelticsModel_v1.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
