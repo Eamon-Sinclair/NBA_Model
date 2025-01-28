@@ -48,7 +48,7 @@ if team == "Boston Celtics":
         "Starting Revenue ($M)", min_value=0.0, value=float(starting_revenue), step=10.0
     )
 
-    st.sidebar.text(f"Starting TEV: ${starting_enterprise_value:.0f}M")
+    st.sidebar.write(f"Starting Equity: ${(starting_enterprise_value - starting_debt):.0f}M")
 
     entry_quarter = st.sidebar.selectbox("Entry Quarter", options=quarter_options, index=quarter_options.index("2Q25"))
     exit_quarter = st.sidebar.selectbox("Exit Quarter", options=quarter_options, index=quarter_options.index("2Q32"))
