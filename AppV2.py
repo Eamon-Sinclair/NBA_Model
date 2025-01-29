@@ -407,6 +407,16 @@ if team == "Memphis Grizzlies":
         ws_summary.cell(row=14, column=3).value = f"=({exit_ev_cell}-{exit_debt_col})*C10"
         ws_summary.cell(row=14, column=3).number_format = "$#,##0.0"
 
+        entry_cash_flow_cell = ws_summary.cell(row=revenue_row + 2, column=3)  # C5 (Cash Flow Row, Entry Column)
+        entry_cash_flow_cell.value = "=-C13"  # Use Equity Value at Entry
+        entry_cash_flow_cell.number_format = "_($#,##0.0_);_($(#,##0.0);_($\"-\"??_);_(@_)"  # Format as currency with 1 decimal
+
+        # Overwrite Cash Flow Exit (Last Column)
+        exit_cash_flow_col = 3 + holding_period_years  # Dynamically calculate the column index for exit
+        exit_cash_flow_cell = ws_summary.cell(row=revenue_row + 2, column=exit_cash_flow_col)  # Last column of Cash Flow Row
+        exit_cash_flow_cell.value = "=C14"  # Use Equity Value at Exit
+        exit_cash_flow_cell.number_format = "$#,##0.0"
+
         for row_idx in range(10, 20):  # Rows 10 through 19
             cell = ws_summary.cell(row=row_idx, column=3)  # Column C
             cell.alignment = Alignment(horizontal="right", vertical="center")
@@ -539,7 +549,7 @@ if team == "Memphis Grizzlies":
         st.download_button(
             label="Download Excel File",
             data=output,
-            file_name="NBA_Team_Underwriting.xlsx",
+            file_name="Grizzlies_v1.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
