@@ -351,7 +351,7 @@ if team == "Memphis Grizzlies":
 
         # Exit EV should be placed exactly `holding_period_years` columns to the right of first_col (C3)
         exit_col_index = 3 + holding_period_years  # This ensures the exit EV formula appears in the correct last year column
-        last_col = ws_summary.cell(row=revenue_row, column=exit_col_index).coordinate  # Last Year Revenue cell
+        last_col = ws_summary.cell(row=revenue_row, column=exit_col_index).column_letter  # Last Year Revenue cell
 
         # Place EV formulas in the correct locations
         entry_ev_cell = ws_summary.cell(row=ev_row, column=3)
@@ -359,7 +359,7 @@ if team == "Memphis Grizzlies":
         entry_ev_cell.number_format = "$#,##0.0"  # Format as currency with 1 decimal
 
         exit_ev_cell = ws_summary.cell(row=ev_row, column=exit_col_index)
-        exit_ev_cell.value = f"={last_col} * LEFT($C$17,LEN($C$17)-1)"  # Exit EV Formula in correct final column
+        exit_ev_cell.value = f"={last_col}{revenue_row} * LEFT($C$17, LEN($C$17) - 1)"  # Exit EV Formula in correct final column
         exit_ev_cell.number_format = "$#,##0.0"  # Format as currency with 1 decimal
 
         # Leave Intermediate Columns Blank
@@ -387,8 +387,8 @@ if team == "Memphis Grizzlies":
         # Style Summary Table headers
         style_headers(ws_summary, start_row=summary_start_row, start_col=2, end_col=3)
 
-                # Overwrite C11: IRR of Cash Flow for Holding Period
-        cash_flow_range = f"C{revenue_row + 2}:J{revenue_row + 2}"  # Adjusted for the row where cash flows are stored
+        # Overwrite C11: IRR of Cash Flow for Holding Period
+        cash_flow_range = f"C{revenue_row + 2}:{last_col}{revenue_row + 2}"  # Adjusted for the row where cash flows are stored
         ws_summary.cell(row=11, column=3).value = f"=IRR({cash_flow_range})"
         ws_summary.cell(row=11, column=3).number_format = "0.0%"
 
@@ -427,6 +427,10 @@ if team == "Memphis Grizzlies":
         # Apply to C15:C19
         for row_idx in range(15, 20):
             ws_summary.cell(row=row_idx, column=3).font = blue_font
+
+        # Apply to D5:I5 (Cash Flow intermediate cells)
+        for col_idx in range(4, 10):  # Columns D to I
+            ws_summary.cell(row=5, column=col_idx).font = blue_font
 
         for row_idx in range(10, 20):  # Rows 10 through 19
             cell = ws_summary.cell(row=row_idx, column=3)  # Column C
@@ -566,5 +570,3 @@ if team == "Memphis Grizzlies":
 
     # Call the function
     export_excel_button(projections_table, investment_summary, starting_enterprise_value, entry_tev_revenue, desired_revenue_growth)
-
-
