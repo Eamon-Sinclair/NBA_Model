@@ -428,10 +428,6 @@ if team == "Memphis Grizzlies":
         for row_idx in range(15, 20):
             ws_summary.cell(row=row_idx, column=3).font = blue_font
 
-        # Apply to D5:I5 (Cash Flow intermediate cells)
-        for col_idx in range(4, 10):  # Columns D to I
-            ws_summary.cell(row=5, column=col_idx).font = blue_font
-
         for row_idx in range(10, 20):  # Rows 10 through 19
             cell = ws_summary.cell(row=row_idx, column=3)  # Column C
             cell.alignment = Alignment(horizontal="right", vertical="center")
