@@ -417,6 +417,21 @@ if team == "Memphis Grizzlies":
         exit_cash_flow_cell.value = "=C14"  # Use Equity Value at Exit
         exit_cash_flow_cell.number_format = "$#,##0.0"
 
+        blue_font = Font(color="0000FF")
+
+        # Apply blue fill to specified cells
+        ws_summary.cell(row=3, column=3).font = blue_font  # C3 (First-year Revenue)
+        ws_summary.cell(row=4, column=3).font = blue_font  # C4 (First-year Debt Level)
+        ws_summary.cell(row=10, column=3).font = blue_font  # C10 (Ownership Stake)
+
+        # Apply to C15:C19
+        for row_idx in range(15, 20):
+            ws_summary.cell(row=row_idx, column=3).font = blue_font
+
+        # Apply to D5:I5 (Cash Flow intermediate cells)
+        for col_idx in range(4, 10):  # Columns D to I
+            ws_summary.cell(row=5, column=col_idx).font = blue_font
+
         for row_idx in range(10, 20):  # Rows 10 through 19
             cell = ws_summary.cell(row=row_idx, column=3)  # Column C
             cell.alignment = Alignment(horizontal="right", vertical="center")
